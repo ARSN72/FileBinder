@@ -141,7 +141,7 @@ class AboutDialog(QDialog):
 
         developers = [
             {"name": "Arshan Mansuri", "enrollment": "0808CB221010", "Portfolio": "https://arsn72.github.io/INTRO/"},
-            {"name": "Anurag Malviy", "enrollment": "0808CB221009", "Portfolio": "https://www.linkedin.com/in/anurag-malviya-7629b0255/"}
+            {"name": "Anurag Malviya", "enrollment": "0808CB221009", "Portfolio": "https://www.linkedin.com/in/anurag-malviya-7629b0255/"}
         ]
 
         for dev in developers:
