@@ -2,8 +2,8 @@ import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QListWidget, 
                              QFileDialog, QMessageBox, QProgressBar, QTextEdit, QLabel, QDialog, QGridLayout, 
-                             QScrollArea, QFrame, QTabWidget, QListWidgetItem)
-from PyQt6.QtGui import QIcon, QPixmap, QColor
+                             QScrollArea, QTabWidget, QListWidgetItem)
+from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QUrl
 from PyQt6.QtGui import QDesktopServices
 import subprocess
@@ -16,10 +16,11 @@ class BinderThread(QThread):
     finished = pyqtSignal()
 
     def __init__(self, selected_files, output_file, icon_file):
-        QThread.__init__(self)
+        super().__init__()
         self.selected_files = selected_files
         self.output_file = output_file
         self.icon_file = icon_file
+        self.cancelled = False
 
     def run(self):
         try:
@@ -27,6 +28,9 @@ class BinderThread(QThread):
             self.log.emit("Starting file binding process...")
 
             with tempfile.TemporaryDirectory() as temp_dir:
+                if self.cancelled:
+                    return
+
                 self.progress.emit(10)
                 self.log.emit("Created temporary directory")
 
@@ -36,23 +40,37 @@ class BinderThread(QThread):
                     for file in self.selected_files:
                         f.write(f"os.startfile(r'{os.path.basename(file)}')\n")
                 
+                if self.cancelled:
+                    return
+
                 self.progress.emit(30)
                 self.log.emit("Created opener script")
 
                 for file in self.selected_files:
                     shutil.copy2(file, temp_dir)
+                    if self.cancelled:
+                        return
                 
                 self.progress.emit(50)
                 self.log.emit("Copied selected files to temporary directory")
 
+                if self.cancelled:
+                    return
+
                 icon_param = f"--icon={self.icon_file}" if self.icon_file else ""
                 subprocess.run(["pyinstaller", "--onefile", "--windowed", "--add-data", f"{temp_dir}/*;.", icon_param, opener_script], check=True)
                 
+                if self.cancelled:
+                    return
+
                 self.progress.emit(80)
                 self.log.emit("Created executable with PyInstaller")
 
                 shutil.move(os.path.join("dist", "opener_script.exe"), self.output_file)
                 
+                if self.cancelled:
+                    return
+
                 self.progress.emit(90)
                 self.log.emit("Moved executable to desired location")
 
@@ -66,13 +84,18 @@ class BinderThread(QThread):
         except Exception as e:
             self.log.emit(f"Error: {str(e)}")
 
+    def cancel(self):
+        self.cancelled = True
+
 class IconBrowser(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Icon Browser")
         self.setFixedSize(400, 300)
         self.selected_icon = ""
+        self.init_ui()
 
+    def init_ui(self):
         layout = QVBoxLayout()
 
         scroll_area = QScrollArea()
@@ -80,7 +103,7 @@ class IconBrowser(QDialog):
         scroll_content = QWidget()
         grid_layout = QGridLayout(scroll_content)
 
-        icon_dir = "icons"  
+        icon_dir = "icons"  # Directory containing built-in icons
         row, col = 0, 0
         for icon_file in os.listdir(icon_dir):
             if icon_file.endswith(".ico"):
@@ -120,7 +143,9 @@ class AboutDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("About File Binder")
         self.setFixedSize(400, 400)
+        self.init_ui()
 
+    def init_ui(self):
         layout = QVBoxLayout()
 
         logo_label = QLabel()
@@ -134,7 +159,7 @@ class AboutDialog(QDialog):
         app_name.setStyleSheet("font-size: 24px; font-weight: bold;")
         layout.addWidget(app_name)
 
-        description = QLabel("File Binder, Designed and Developed For Vth Semester, Mini Project by:-")
+        description = QLabel("Designed and Developed For Vth Semester, Mini Project by:-")
         description.setAlignment(Qt.AlignmentFlag.AlignCenter)
         description.setWordWrap(True)
         layout.addWidget(description)
@@ -157,7 +182,7 @@ class AboutDialog(QDialog):
             portfolio_button.clicked.connect(lambda _, url=dev['Portfolio']: QDesktopServices.openUrl(QUrl(url)))
             layout.addWidget(portfolio_button)
 
-        contribute_button = QPushButton("Contribute to this Project on GitHub")
+        contribute_button = QPushButton("Contribute on GitHub")
         contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ARSN72/FileBinder")))
         layout.addWidget(contribute_button)
 
@@ -172,6 +197,8 @@ class FileBinder(QMainWindow):
         
         self.selected_files = []
         self.icon_file = ""
+        self.output_file = ""
+        self.default_icon = "app_icon.ico"
         
         self.init_ui()
     
@@ -197,9 +224,17 @@ class FileBinder(QMainWindow):
         
         main_layout.addLayout(button_layout)
         
+        self.status_layout = QHBoxLayout()
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        main_layout.addWidget(self.progress_bar)
+        self.status_layout.addWidget(self.progress_bar)
+        
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.cancel_binding)
+        self.cancel_button.setVisible(False)
+        self.status_layout.addWidget(self.cancel_button)
+        
+        main_layout.addLayout(self.status_layout)
         
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
@@ -220,6 +255,16 @@ class FileBinder(QMainWindow):
         remove_button.clicked.connect(self.remove_file)
         layout.addWidget(remove_button)
         
+        output_layout = QHBoxLayout()
+        output_label = QLabel("Output File:")
+        self.output_edit = QLabel("No output file selected")
+        output_browse = QPushButton("Browse")
+        output_browse.clicked.connect(self.browse_output)
+        output_layout.addWidget(output_label)
+        output_layout.addWidget(self.output_edit)
+        output_layout.addWidget(output_browse)
+        layout.addLayout(output_layout)
+        
         widget.setLayout(layout)
         return widget
     
@@ -231,7 +276,7 @@ class FileBinder(QMainWindow):
         select_icon_button.clicked.connect(self.browse_icons)
         layout.addWidget(select_icon_button)
         
-        self.icon_label = QLabel("No icon selected")
+        self.icon_label = QLabel("If no icon selected (default app icon will be applied)")
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.icon_label)
         
@@ -283,26 +328,37 @@ class FileBinder(QMainWindow):
             else:
                 self.icon_label.setText(f"Selected icon: {os.path.basename(self.icon_file)} (Preview not available)")
         else:
-            self.icon_label.setText("No icon selected")
+            self.icon_label.setText("No icon selected (default app icon will be used)")
             self.icon_label.setPixmap(QPixmap())
+    
+    def browse_output(self):
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Bound File", "", "Executable (*.exe)")
+        if file_name:
+            self.output_edit.setText(file_name)
+            self.output_file = file_name
     
     def bind_files(self):
         if len(self.selected_files) < 2:
             QMessageBox.warning(self, "Warning", "Please select at least two files to bind.")
             return
         
-        output_file, _ = QFileDialog.getSaveFileName(self, "Save Bound File", "", "Executable (*.exe)")
-        if output_file:
-            self.progress_bar.setVisible(True)
-            self.log_display.clear()
-            
-            self.binder_thread = BinderThread(self.selected_files, output_file, self.icon_file)
-            self.binder_thread.progress.connect(self.update_progress)
-            self.binder_thread.log.connect(self.update_log)
-            self.binder_thread.finished.connect(self.binding_finished)
-            self.binder_thread.start()
+        if not self.output_file:
+            QMessageBox.warning(self, "Warning", "Please specify an output file.")
+            return
+        
+        self.progress_bar.setVisible(True)
+        self.cancel_button.setVisible(True)
+        self.log_display.clear()
+        
+        icon_to_use = self.icon_file if self.icon_file else self.default_icon
+        self.binder_thread = BinderThread(self.selected_files, self.output_file, icon_to_use)
+        self.binder_thread.progress.connect(self.update_progress)
+        self.binder_thread.log.connect(self.update_log)
+        self.binder_thread.finished.connect(self.binding_finished)
+        self.binder_thread.start()
     
-    def update_progress(self, value):
+    def update_progress(self,
+value):
         self.progress_bar.setValue(value)
     
     def update_log(self, message):
@@ -310,8 +366,17 @@ class FileBinder(QMainWindow):
         self.tabs.setCurrentIndex(2)  # Switch to Log tab
     
     def binding_finished(self):
-        QMessageBox.information(self, "Success", "Bound file created successfully!")
         self.progress_bar.setVisible(False)
+        self.cancel_button.setVisible(False)
+        if not self.binder_thread.cancelled:
+            QMessageBox.information(self, "Success", "Bound file created successfully!")
+        else:
+            QMessageBox.information(self, "Cancelled", "File binding process was cancelled.")
+    
+    def cancel_binding(self):
+        if self.binder_thread and self.binder_thread.isRunning():
+            self.binder_thread.cancel()
+            self.log_display.append("Cancelling binding process...")
     
     def show_about(self):
         about_dialog = AboutDialog(self)
@@ -320,22 +385,8 @@ class FileBinder(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    palette = app.palette()
-    palette.setColor(palette.ColorRole.Window, QColor(240, 240, 240))
-    palette.setColor(palette.ColorRole.WindowText, QColor(0, 0, 0))
-    palette.setColor(palette.ColorRole.Base, QColor(255, 255, 255))
-    palette.setColor(palette.ColorRole.AlternateBase, QColor(245, 245, 245))
-    palette.setColor(palette.ColorRole.ToolTipBase, QColor(255, 255, 220))
-    palette.setColor(palette.ColorRole.ToolTipText, QColor(0, 0, 0))
-    palette.setColor(palette.ColorRole.Text, QColor(0, 0, 0))
-    palette.setColor(palette.ColorRole.Button, QColor(240, 240, 240))
-    palette.setColor(palette.ColorRole.ButtonText, QColor(0, 0, 0))
-    palette.setColor(palette.ColorRole.BrightText, QColor(255, 0, 0))
-    palette.setColor(palette.ColorRole.Link, QColor(0, 0, 255))
-    palette.setColor(palette.ColorRole.Highlight, QColor(76, 163, 224))
-    palette.setColor(palette.ColorRole.HighlightedText, QColor(255, 255, 255))
-    app.setPalette(palette)
     
     binder = FileBinder()
     binder.show()
     sys.exit(app.exec())
+
