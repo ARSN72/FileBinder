@@ -99,4 +99,4 @@ This project is open source so you can just clone this repo and you can change t
 
 Developed with ❤️ by 
 [Arshan Mansuri](https://arsn72.github.io/INTRO/)
-[Anurag Malviy](https://www.linkedin.com/in/anurag-malviya-7629b0255/)
+[Anurag Malviya](https://www.linkedin.com/in/anurag-malviya-7629b0255/)
