@@ -182,8 +182,8 @@ class AboutDialog(QDialog):
             portfolio_button.clicked.connect(lambda _, url=dev['Portfolio']: QDesktopServices.openUrl(QUrl(url)))
             layout.addWidget(portfolio_button)
 
-        contribute_button = QPushButton("Contribute on GitHub")
-        contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/yourusername/file-binder")))
+        contribute_button = QPushButton("Contribute To This Project")
+        contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ARSN72/FileBinder/")))
         layout.addWidget(contribute_button)
 
         self.setLayout(layout)
