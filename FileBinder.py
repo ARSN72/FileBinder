@@ -44,7 +44,7 @@ class BinderThread(QThread):
                     return
 
                 self.progress.emit(30)
-                self.log.emit("Created opener script")
+                self.log.emit("Created Auto Release Script")
 
                 for file in self.selected_files:
                     shutil.copy2(file, temp_dir)
@@ -52,7 +52,7 @@ class BinderThread(QThread):
                         return
                 
                 self.progress.emit(50)
-                self.log.emit("Copied selected files to temporary directory")
+                self.log.emit("Copied Selected Files To Temporary Directory")
 
                 if self.cancelled:
                     return
@@ -64,7 +64,7 @@ class BinderThread(QThread):
                     return
 
                 self.progress.emit(80)
-                self.log.emit("Created executable with PyInstaller")
+                self.log.emit("Created Executable With PyInstaller")
 
                 shutil.move(os.path.join("dist", "opener_script.exe"), self.output_file)
                 
@@ -72,13 +72,13 @@ class BinderThread(QThread):
                     return
 
                 self.progress.emit(90)
-                self.log.emit("Moved executable to desired location")
+                self.log.emit("Moved Executable To Desired Location")
 
                 shutil.rmtree("build", ignore_errors=True)
                 os.remove("opener_script.spec")
 
                 self.progress.emit(100)
-                self.log.emit("Cleaned up temporary files")
+                self.log.emit("Cleaned Up Temporary Files")
 
             self.finished.emit()
         except Exception as e:
@@ -90,7 +90,7 @@ class BinderThread(QThread):
 class IconBrowser(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Icon Browser")
+        self.setWindowTitle("Browse Icon")
         self.setFixedSize(400, 300)
         self.selected_icon = ""
         self.init_ui()
@@ -159,7 +159,7 @@ class AboutDialog(QDialog):
         app_name.setStyleSheet("font-size: 24px; font-weight: bold;")
         layout.addWidget(app_name)
 
-        description = QLabel("Designed and Developed For Vth Semester, Mini Project by:-")
+        description = QLabel("File Binder, Designed And Developed For Vth Semester, Mini Project by:-")
         description.setAlignment(Qt.AlignmentFlag.AlignCenter)
         description.setWordWrap(True)
         layout.addWidget(description)
@@ -183,7 +183,7 @@ class AboutDialog(QDialog):
             layout.addWidget(portfolio_button)
 
         contribute_button = QPushButton("Contribute on GitHub")
-        contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ARSN72/FileBinder")))
+        contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/yourusername/file-binder")))
         layout.addWidget(contribute_button)
 
         self.setLayout(layout)
@@ -257,7 +257,7 @@ class FileBinder(QMainWindow):
         
         output_layout = QHBoxLayout()
         output_label = QLabel("Output File:")
-        self.output_edit = QLabel("No output file selected")
+        self.output_edit = QLabel("No Output File Selected")
         output_browse = QPushButton("Browse")
         output_browse.clicked.connect(self.browse_output)
         output_layout.addWidget(output_label)
@@ -276,7 +276,7 @@ class FileBinder(QMainWindow):
         select_icon_button.clicked.connect(self.browse_icons)
         layout.addWidget(select_icon_button)
         
-        self.icon_label = QLabel("If no icon selected (default app icon will be applied)")
+        self.icon_label = QLabel("No icon Selected (Default App Icon Will Be Used)")
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.icon_label)
         
