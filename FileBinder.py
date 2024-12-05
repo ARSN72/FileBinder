@@ -159,7 +159,7 @@ class AboutDialog(QDialog):
         app_name.setStyleSheet("font-size: 24px; font-weight: bold;")
         layout.addWidget(app_name)
 
-        description = QLabel("File Binder, Designed And Developed For Vth Semester, Mini Project by:-")
+        description = QLabel("Designed And Developed Puerly For Vth Semester, Mini Project by:-")
         description.setAlignment(Qt.AlignmentFlag.AlignCenter)
         description.setWordWrap(True)
         layout.addWidget(description)
