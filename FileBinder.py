@@ -247,8 +247,13 @@ class AboutDialog(QDialog):
             portfolio_button.clicked.connect(lambda _, url=dev['Portfolio']: QDesktopServices.openUrl(QUrl(url)))
             layout.addWidget(portfolio_button)
 
+<<<<<<< HEAD
         contribute_button = QPushButton("Wanna Contribute to this project?")
         contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ARSN72/FileBinder")))
+=======
+        contribute_button = QPushButton("Contribute To This Project")
+        contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ARSN72/FileBinder/")))
+>>>>>>> 1e23fe1ae3ce91c0a60b717eeda0d45bf0f2cf54
         layout.addWidget(contribute_button)
 
         self.setLayout(layout)
