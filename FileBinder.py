@@ -10,6 +10,16 @@ import subprocess
 import shutil
 import tempfile
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 class BinderThread(QThread):
     progress = pyqtSignal(int)
     log = pyqtSignal(str)
@@ -36,53 +46,113 @@ class BinderThread(QThread):
 
                 opener_script = os.path.join(temp_dir, "opener_script.py")
                 with open(opener_script, "w") as f:
-                    f.write("import os\nimport sys\n\n")
+                    f.write("""
+import os
+import sys
+import tempfile
+import shutil
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+def extract_file(filename):
+    temp_dir = tempfile.mkdtemp()
+    shutil.copy2(resource_path(filename), temp_dir)
+    return os.path.join(temp_dir, filename)
+
+""")
                     for file in self.selected_files:
-                        f.write(f"os.startfile(r'{os.path.basename(file)}')\n")
-                
+                        f.write(f"""
+temp_file = extract_file("{os.path.basename(file)}")
+os.startfile(temp_file)
+""")
+            
                 if self.cancelled:
                     return
 
                 self.progress.emit(30)
-                self.log.emit("Created Auto Release Script")
+                self.log.emit("Created opener script")
 
                 for file in self.selected_files:
                     shutil.copy2(file, temp_dir)
                     if self.cancelled:
                         return
-                
+            
                 self.progress.emit(50)
-                self.log.emit("Copied Selected Files To Temporary Directory")
+                self.log.emit(f"Copied {len(self.selected_files)} files to temporary directory")
 
                 if self.cancelled:
                     return
 
                 icon_param = f"--icon={self.icon_file}" if self.icon_file else ""
-                subprocess.run(["pyinstaller", "--onefile", "--windowed", "--add-data", f"{temp_dir}/*;.", icon_param, opener_script], check=True)
-                
-                if self.cancelled:
-                    return
+                output_name = os.path.splitext(os.path.basename(self.output_file))[0]
+                pyinstaller_command = [
+                    "pyinstaller",
+                    "--onefile",
+                    "--windowed",
+                    "--add-data", f"{temp_dir}/*;.",
+                    icon_param,
+                    "--name", output_name,
+                    opener_script
+                ]
+            
+                self.log.emit("Running PyInstaller...")
+            
+                result = subprocess.run(pyinstaller_command, capture_output=True, text=True)
+            
+                if result.returncode != 0:
+                    self.log.emit("PyInstaller encountered an error:")
+                    for line in result.stderr.split('\n'):
+                        if line.strip():
+                            self.log.emit(f"  {line.strip()}")
+                    raise Exception("PyInstaller failed to create the executable")
 
                 self.progress.emit(80)
-                self.log.emit("Created Executable With PyInstaller")
+                self.log.emit("Created executable with PyInstaller")
 
-                shutil.move(os.path.join("dist", "opener_script.exe"), self.output_file)
-                
+                output_dir = os.path.dirname(self.output_file)
+                exe_name = f"{output_name}.exe"
+                source_exe = os.path.join("dist", exe_name)
+            
+                if not os.path.exists(source_exe):
+                    self.log.emit(f"Error: Expected executable not found")
+                    raise FileNotFoundError(f"PyInstaller did not create the expected executable")
+
+                shutil.move(source_exe, self.output_file)
+            
                 if self.cancelled:
                     return
 
                 self.progress.emit(90)
-                self.log.emit("Moved Executable To Desired Location")
+                self.log.emit(f"Moved executable to: {self.output_file}")
 
-                shutil.rmtree("build", ignore_errors=True)
-                os.remove("opener_script.spec")
+                # Careful cleanup
+                if os.path.exists("build"):
+                    shutil.rmtree("build", ignore_errors=True)
+                    self.log.emit("Cleaned up build directory")
+            
+                spec_file = f"{output_name}.spec"
+                if os.path.exists(spec_file):
+                    os.remove(spec_file)
+                    self.log.emit(f"Removed {spec_file}")
+                else:
+                    self.log.emit(f"Note: {spec_file} not found for cleanup")
+
+                if os.path.exists("dist"):
+                    shutil.rmtree("dist", ignore_errors=True)
+                    self.log.emit("Cleaned up dist directory")
 
                 self.progress.emit(100)
-                self.log.emit("Cleaned Up Temporary Files")
+                self.log.emit("File binding process completed successfully")
 
-            self.finished.emit()
+                self.finished.emit()
         except Exception as e:
             self.log.emit(f"Error: {str(e)}")
+            self.finished.emit()
 
     def cancel(self):
         self.cancelled = True
@@ -90,7 +160,7 @@ class BinderThread(QThread):
 class IconBrowser(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Browse Icon")
+        self.setWindowTitle("Icon Browser")
         self.setFixedSize(400, 300)
         self.selected_icon = ""
         self.init_ui()
@@ -103,7 +173,7 @@ class IconBrowser(QDialog):
         scroll_content = QWidget()
         grid_layout = QGridLayout(scroll_content)
 
-        icon_dir = "icons"  # Directory containing built-in icons
+        icon_dir = resource_path("icons")  # Directory containing built-in icons
         row, col = 0, 0
         for icon_file in os.listdir(icon_dir):
             if icon_file.endswith(".ico"):
@@ -149,7 +219,7 @@ class AboutDialog(QDialog):
         layout = QVBoxLayout()
 
         logo_label = QLabel()
-        logo_pixmap = QPixmap('logo.png')
+        logo_pixmap = QPixmap(resource_path('logo.png'))
         logo_label.setPixmap(logo_pixmap.scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatio))
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(logo_label)
@@ -159,31 +229,26 @@ class AboutDialog(QDialog):
         app_name.setStyleSheet("font-size: 24px; font-weight: bold;")
         layout.addWidget(app_name)
 
-        description = QLabel("Designed And Developed Puerly For Vth Semester, Mini Project by:-")
+        description = QLabel("File Binder, Designed and Developed For Vth Semester, Mini Project by:-")
         description.setAlignment(Qt.AlignmentFlag.AlignCenter)
         description.setWordWrap(True)
         layout.addWidget(description)
 
-        developers = [
-            {"name": "Arshan Mansuri", "enrollment": "0808CB221010", "Portfolio": "https://arsn72.github.io/INTRO/"},
-            {"name": "Anurag Malviya", "enrollment": "0808CB221009", "Portfolio": "https://www.linkedin.com/in/anurag-malviya-7629b0255/"}
+        developer = [
+            {"name": "Arshan Mansuri",  "Portfolio": "https://arsn72.github.io/INTRO/"},
         ]
 
-        for dev in developers:
+        for dev in developer:
             dev_name = QLabel(dev['name'])
             dev_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(dev_name)
-
-            enrollment = QLabel(f"Enrollment No:- {dev['enrollment']}")
-            enrollment.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(enrollment)
 
             portfolio_button = QPushButton("Portfolio")
             portfolio_button.clicked.connect(lambda _, url=dev['Portfolio']: QDesktopServices.openUrl(QUrl(url)))
             layout.addWidget(portfolio_button)
 
-        contribute_button = QPushButton("Contribute on GitHub")
-        contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/yourusername/file-binder")))
+        contribute_button = QPushButton("Wanna Contribute to this project?")
+        contribute_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/ARSN72/FileBinder")))
         layout.addWidget(contribute_button)
 
         self.setLayout(layout)
@@ -193,12 +258,12 @@ class FileBinder(QMainWindow):
         super().__init__()
         self.setWindowTitle("File Binder")
         self.setGeometry(100, 100, 800, 600)
-        self.setWindowIcon(QIcon("app_icon.ico"))
+        self.setWindowIcon(QIcon(resource_path("app_icon.ico")))
         
         self.selected_files = []
         self.icon_file = ""
         self.output_file = ""
-        self.default_icon = "app_icon.ico"
+        self.default_icon = resource_path("app_icon.ico")
         
         self.init_ui()
     
@@ -257,7 +322,7 @@ class FileBinder(QMainWindow):
         
         output_layout = QHBoxLayout()
         output_label = QLabel("Output File:")
-        self.output_edit = QLabel("No Output File Selected")
+        self.output_edit = QLabel("No output file selected")
         output_browse = QPushButton("Browse")
         output_browse.clicked.connect(self.browse_output)
         output_layout.addWidget(output_label)
@@ -276,7 +341,7 @@ class FileBinder(QMainWindow):
         select_icon_button.clicked.connect(self.browse_icons)
         layout.addWidget(select_icon_button)
         
-        self.icon_label = QLabel("No icon Selected (Default App Icon Will Be Used)")
+        self.icon_label = QLabel("No icon selected (default app icon will be used)")
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.icon_label)
         
@@ -309,7 +374,7 @@ class FileBinder(QMainWindow):
     def update_file_list(self):
         self.file_list.clear()
         for file in self.selected_files:
-            item = QListWidgetItem(QIcon("file_icon.png"), file)
+            item = QListWidgetItem(QIcon(resource_path("file_icon.png")), file)
             self.file_list.addItem(item)
     
     def browse_icons(self):
@@ -357,8 +422,7 @@ class FileBinder(QMainWindow):
         self.binder_thread.finished.connect(self.binding_finished)
         self.binder_thread.start()
     
-    def update_progress(self,
-value):
+    def update_progress(self, value):
         self.progress_bar.setValue(value)
     
     def update_log(self, message):
