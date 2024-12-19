@@ -1,13 +1,13 @@
 # FileBinder
 
-File Binder is a desktop application that allows users to bundle multiple files into a single executable (.exe) file.
-This project was developed as a mini-project for the 5th semester by Arshan Mansuri and Anurag Malviy.
+File Binder is a desktop application that allows users to bundle multiple files into a single executable (.exe) file. <br>
+This project was developed as a mini-project for the 5th semester by Arshan Mansuri.
 
 ## ⚠️ Ethical Usage Disclaimer
 
-**IMPORTANT:** This application is intended for legitimate and ethical purposes only. 
-The developers are not responsible for any misuse or unethical usage of this application. 
-By using File Binder, you agree to use it responsibly and in compliance with all applicable laws and regulations.
+**IMPORTANT:** This application is intended for legitimate and ethical purposes only.<br> 
+The developer are not responsible for any misuse or unethical usage of this application. <br>
+By using File Binder, you agree to use it responsibly and in compliance with all applicable laws and regulations.<br>
 
 DO NOT use this application for:
 - Distributing malware or viruses
@@ -39,33 +39,34 @@ python src/file_binder.py
 
 ## How to use FileBinder
 
-1.Open File Binder FileBinder.py
-2.Go to File Tab, Click on Select File Button, Select Two or more Files.
-3.Go to Icon Tab, Click on Browse icons option, Selct an icon from this list or Browse your icon from system.
-4.Click On Bind Files Button to Combine your files, Select you File Save location and give it name.
-5.You'll be Automatically redireted to Log tab where you can see progress of your file binding process.
-6.You're All Done.. Enjoy
+1.Open File Binder FileBinder.py<br>
+2.Go to File Tab, Click on Select File Button, Select Two or more Files.<br>
+3.Go to Icon Tab, Click on Browse icons option, Selct an icon from this list or Browse your icon from system.<br>
+4.Click On Bind Files Button to Combine your files, Select you File Save location and give it name.<br>
+5.You'll be Automatically redireted to Log tab where you can see progress of your file binding process.<br>
+6.You're All Done.. Enjoy<br>
 
 ## Project Structure
 
-file-binder/
-│
-├── src/
-│   ├── file_binder.py
-│   ├── icons/
-│   │   └── (built-in icons)
-│   └── app_icon.ico
-│
-├── FileBinder.exe
-├── Logo.psd
-├── README.md
-├── LICENSE
+file-binder/<br>
+│<br>
+├── src/<br>
+│   ├── file_binder.py<br>
+│   ├── icons/<br>
+│   │   └── (built-in icons)<br>
+│   └── app_icon.ico<br>
+│<br>
+├── FileBinder.exe<br>
+├── Logo.psd<br>
+├── README.md<br>
+├── LICENSE<br>
 └── requirements.txt
 
-### Using the Pre-built Executable
+
+### Use Stable Release Of The Tool
 
 1. Download the latest release from the [Releases](https://github.com/ARSN72/FileBinder) page.
-2. Run the `FileBinder.exe` file.
+2. Run the `FileBinder.py` file.
 
 ### Running from Source
 
@@ -99,4 +100,3 @@ This project is open source so you can just clone this repo and you can change t
 
 Developed with ❤️ by 
 [Arshan Mansuri](https://arsn72.github.io/INTRO/)
-[Anurag Malviya](https://www.linkedin.com/in/anurag-malviya-7629b0255/)
